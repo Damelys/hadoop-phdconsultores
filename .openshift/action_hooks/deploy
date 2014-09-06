@@ -1,0 +1,36 @@
+#!/bin/bash
+# This deploy hook gets executed after dependencies are resolved and the
+# build hook has been run but before the application has been started back
+# up again.  This script gets executed directly, so it could be python, php,
+# ruby, etc.
+set -x
+if [ ! -d $OPENSHIFT_DATA_DIR/jdk1.8.0_20 ]
+	then 
+		cd $OPENSHIFT_DATA_DIR
+		wget http://www.java.net/download/jdk8u20/archive/b17/binaries/jdk-8u20-ea-bin-b17-linux-x64-04_jun_2014.tar.gz
+		tar xvf *.tar.gz 
+		rm -f *.tar.gz
+fi
+
+if [ -d $OPENSHIFT_DATA_DIR/hadoop ]
+then
+	exit 0
+else
+	cd $OPENSHIFT_DATA_DIR
+	curl -OL http://mirror.olnevhost.net/pub/apache/hadoop/common/stable/hadoop-2.5.0.tar.gz
+	tar -xzvf hadoop-2.5.0.tar.gz
+	rm *.tar.gz
+	mv hadoop-* hadoop
+
+	cd ../hadoop/etc/hadoop
+	sed -ig 's/${JAVA_HOME}/'$OPENSHIFT_DATA_DIR/jdk1.8.0_20'/g' hadoop-env.sh
+	sed "/25/c export HADOOP_PREFIX=$OPENSHIFT_DATA_DIR/hadoop"  hadoop-env.sh
+	sed -ig 's/${HADOOP_CONF_DIR:-"/etc/hadoop"}/'$OPENSHIFT_DATA_DIR/hadoop/etc/hadoop'/g' hadoop-env.sh
+
+fi
+
+cd $OPENSHIFT_DATA_DIR
+export JAVA_HOME=$OPENSHIFT_DATA_DIR/jdk1.8.0_20
+export PATH=$JAVA_HOME/bin:$PATH
+
+
